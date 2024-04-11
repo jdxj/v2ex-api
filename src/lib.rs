@@ -45,8 +45,8 @@ impl Client {
     }
 
     /// 删除指定的提醒.
-    pub async fn delete_notifications(&self, req: &DeleteNotificationsReq) -> Result<DeleteNotificationsRsp, Box<dyn Error>> {
-        let url = format!("{}{}{}", V2EX_API_DOMAIN, "/notifications/", req.notification_id);
+    pub async fn delete_notification(&self, req: &DeleteNotificationReq) -> Result<DeleteNotificationRsp, Box<dyn Error>> {
+        let url = format!("{}/notifications/{}", V2EX_API_DOMAIN, req.notification_id);
         let req = self.req_client.delete(url)
             .build()?;
 
@@ -83,7 +83,7 @@ impl Client {
 
     /// 创建新的令牌.
     /// 在系统中最多创建 10 个 Personal Access Token.
-    pub async fn post_tokens(&self, req: &PostTokensReq) -> Result<PostTokensRsp, Box<dyn Error>> {
+    pub async fn post_token(&self, req: &PostTokenReq) -> Result<PostTokenRsp, Box<dyn Error>> {
         let mut data = HashMap::new();
         data.insert("scope", req.scope.as_str());
         data.insert("expiration", req.expiration.as_str());
@@ -101,8 +101,8 @@ impl Client {
     }
 
     /// 获取指定节点.
-    pub async fn get_nodes(&self, req: &GetNodesReq) -> Result<GetNodesRsp, Box<dyn Error>> {
-        let url = format!("{}{}{}", V2EX_API_DOMAIN, "/nodes/", req.node_name);
+    pub async fn get_node(&self, req: &GetNodeReq) -> Result<GetNodeRsp, Box<dyn Error>> {
+        let url = format!("{}/nodes/{}", V2EX_API_DOMAIN, req.node_name);
         let req = self.req_client.get(url).build()?;
 
         // println!("url: {:?}", req.url().to_string());
@@ -113,7 +113,7 @@ impl Client {
     }
 
     /// 获取指定节点下的主题.
-    pub async fn get_nodes_topics(&self, req: &GetNodesTopicsReq) -> Result<GetNodesTopicsRsp, Box<dyn Error>>{
+    pub async fn get_node_topics(&self, req: &GetNodeTopicsReq) -> Result<GetNodeTopicsRsp, Box<dyn Error>> {
         let mut page = req.page;
         if page <= 0 {
             page = 1
@@ -132,7 +132,7 @@ impl Client {
     }
 
     /// 获取指定主题.
-    pub async fn get_topics(&self, req: &GetTopicsReq) -> Result<GetTopicsRsp, Box<dyn Error>> {
+    pub async fn get_topic(&self, req: &GetTopicReq) -> Result<GetTopicRsp, Box<dyn Error>> {
         let url = format!("{}/topics/{}", V2EX_API_DOMAIN, req.topic_id);
         let req = self.req_client.get(url).build()?;
 
@@ -144,7 +144,7 @@ impl Client {
     }
 
     /// 获取指定主题下的回复.
-    pub async fn get_topics_replies(&self, req: &GetTopicsRepliesReq) -> Result<GetTopicsRepliesRsp, Box<dyn Error>> {
+    pub async fn get_topic_replies(&self, req: &GetTopicRepliesReq) -> Result<GetTopicRepliesRsp, Box<dyn Error>> {
         let mut page = req.page;
         if page <= 0 {
             page = 1
@@ -163,13 +163,13 @@ impl Client {
     }
 }
 
-pub struct GetTopicsRepliesReq {
+pub struct GetTopicRepliesReq {
     pub topic_id: u32,
     pub page: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GetTopicsRepliesRsp {
+pub struct GetTopicRepliesRsp {
     #[serde(flatten)]
     pub status: Status,
     pub result: Vec<TopicReply>,
@@ -184,12 +184,12 @@ pub struct TopicReply {
     pub member: Member,
 }
 
-pub struct GetTopicsReq {
+pub struct GetTopicReq {
     pub topic_id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GetTopicsRsp {
+pub struct GetTopicRsp {
     #[serde(flatten)]
     pub status: Status,
     pub result: TopicDetails,
@@ -205,13 +205,13 @@ pub struct TopicDetails {
     // pub supplements: Vec<?>,
 }
 
-pub struct GetNodesTopicsReq {
+pub struct GetNodeTopicsReq {
     pub node_name: String,
     pub page: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GetNodesTopicsRsp {
+pub struct GetNodeTopicsRsp {
     #[serde(flatten)]
     pub status: Status,
     pub result: Vec<NodeTopic>,
@@ -232,12 +232,12 @@ pub struct NodeTopic {
     pub last_touched: i64,
 }
 
-pub struct GetNodesReq {
+pub struct GetNodeReq {
     pub node_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GetNodesRsp {
+pub struct GetNodeRsp {
     #[serde(flatten)]
     pub status: Status,
     pub result: NodeDetails,
@@ -257,13 +257,13 @@ pub struct NodeDetails {
     pub last_modified: i64,
 }
 
-pub struct PostTokensReq {
+pub struct PostTokenReq {
     pub scope: Scope,
     pub expiration: Expiration,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct PostTokensRsp {
+pub struct PostTokenRsp {
     pub success: bool,
     pub result: Token,
 }
@@ -351,12 +351,12 @@ pub struct Member {
     pub last_modified: Option<i64>,
 }
 
-pub struct DeleteNotificationsReq {
+pub struct DeleteNotificationReq {
     pub notification_id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct DeleteNotificationsRsp {
+pub struct DeleteNotificationRsp {
     #[serde(flatten)]
     pub status: Status,
 }
@@ -373,7 +373,7 @@ pub struct GetNotificationsRsp {
     // pub result: Vec<?>,
 }
 
-/// 请求结果状态.
+/// 请求处理通用状态.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Status {
     pub success: bool,
@@ -407,9 +407,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_notifications() {
+    async fn delete_notification() {
         let c = new();
-        match c.delete_notifications(&DeleteNotificationsReq { notification_id: 1 }).await {
+        match c.delete_notification(&DeleteNotificationReq { notification_id: 1 }).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
@@ -446,13 +446,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn post_tokens() {
+    async fn post_token() {
         let c = new();
-        let req = PostTokensReq {
+        let req = PostTokenReq {
             scope: Scope::Regular,
             expiration: Expiration::Day30,
         };
-        match c.post_tokens(&req).await {
+        match c.post_token(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
@@ -463,12 +463,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_nodes() {
+    async fn get_node() {
         let c = new();
-        let req = GetNodesReq {
+        let req = GetNodeReq {
             node_name: "rust".to_string(),
         };
-        match c.get_nodes(&req).await {
+        match c.get_node(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
@@ -479,13 +479,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_nodes_topics() {
+    async fn get_node_topics() {
         let c = new();
-        let req = GetNodesTopicsReq {
+        let req = GetNodeTopicsReq {
             node_name: "rust".to_string(),
             page: 1,
         };
-        match c.get_nodes_topics(&req).await {
+        match c.get_node_topics(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
@@ -496,12 +496,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_topics() {
+    async fn get_topic() {
         let c = new();
-        let req = GetTopicsReq {
+        let req = GetTopicReq {
             topic_id: 1029068,
         };
-        match c.get_topics(&req).await {
+        match c.get_topic(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
@@ -512,13 +512,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_topics_replies() {
+    async fn get_topic_replies() {
         let c = new();
-        let req = GetTopicsRepliesReq {
+        let req = GetTopicRepliesReq {
             topic_id: 1029068,
             page: 1,
         };
-        match c.get_topics_replies(&req).await {
+        match c.get_topic_replies(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
