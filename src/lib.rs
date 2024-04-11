@@ -105,12 +105,58 @@ impl Client {
         let url = format!("{}{}{}", V2EX_API_DOMAIN, "/nodes/", req.node_name);
         let req = self.req_client.get(url).build()?;
 
-        println!("url: {:?}", req.url().to_string());
+        // println!("url: {:?}", req.url().to_string());
 
         let bytes = self.req_client.execute(req).await?.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
+
+    /// 获取指定节点下的主题.
+    pub async fn get_nodes_topics(&self, req: &GetNodesTopicsReq) -> Result<GetNodesTopicsRsp, Box<dyn Error>>{
+        let mut page = req.page;
+        if page <= 0 {
+            page = 1
+        }
+
+        let url = format!("{}/nodes/{}/topics", V2EX_API_DOMAIN, req.node_name);
+        let req = self.req_client.get(url)
+            .query(&[("p", page)])
+            .build()?;
+
+        // println!("url: {:?}", req.url().to_string());
+
+        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let body = serde_json::from_slice(&bytes)?;
+        Ok(body)
+    }
+}
+
+pub struct GetNodesTopicsReq {
+    pub node_name: String,
+    pub page: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetNodesTopicsRsp {
+    #[serde(flatten)]
+    pub status: Status,
+    pub result: Vec<NodeTopicsDetails>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NodeTopicsDetails {
+    pub id: u32,
+    pub title: String,
+    pub content: String,
+    pub content_rendered: String,
+    pub syntax: u8,
+    pub url: String,
+    pub replies: u32,
+    pub last_reply_by: String,
+    pub created: i64,
+    pub last_modified: i64,
+    pub last_touched: i64,
 }
 
 pub struct GetNodesReq {
@@ -349,6 +395,23 @@ mod tests {
             node_name: "rust".to_string(),
         };
         match c.get_nodes(&req).await {
+            Ok(body) => {
+                println!("{:?}", body)
+            }
+            Err(e) => {
+                eprintln!("{}", e)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn get_nodes_topics() {
+        let c = new();
+        let req = GetNodesTopicsReq {
+            node_name: "rust".to_string(),
+            page: 1,
+        };
+        match c.get_nodes_topics(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
