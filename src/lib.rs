@@ -142,6 +142,46 @@ impl Client {
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
+
+    /// 获取指定主题下的回复.
+    pub async fn get_topics_replies(&self, req: &GetTopicsRepliesReq) -> Result<GetTopicsRepliesRsp, Box<dyn Error>> {
+        let mut page = req.page;
+        if page <= 0 {
+            page = 1
+        }
+
+        let url = format!("{}/topics/{}/replies", V2EX_API_DOMAIN, req.topic_id);
+        let req = self.req_client.get(url)
+            .query(&[("p", page)])
+            .build()?;
+
+        // println!("url: {:?}", req.url().to_string());
+
+        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let body = serde_json::from_slice(&bytes)?;
+        Ok(body)
+    }
+}
+
+pub struct GetTopicsRepliesReq {
+    pub topic_id: u32,
+    pub page: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetTopicsRepliesRsp {
+    #[serde(flatten)]
+    pub status: Status,
+    pub result: Vec<TopicReply>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TopicReply {
+    pub id: u32,
+    pub content: String,
+    pub content_rendered: String,
+    pub created: i64,
+    pub member: Member,
 }
 
 pub struct GetTopicsReq {
@@ -158,7 +198,7 @@ pub struct GetTopicsRsp {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TopicDetails {
     #[serde(flatten)]
-    pub details: NodeTopicsDetails,
+    pub details: NodeTopic,
     pub member: Member,
     pub node: NodeDetails,
     // todo: 没有数据, 无法定义
@@ -174,11 +214,11 @@ pub struct GetNodesTopicsReq {
 pub struct GetNodesTopicsRsp {
     #[serde(flatten)]
     pub status: Status,
-    pub result: Vec<NodeTopicsDetails>,
+    pub result: Vec<NodeTopic>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct NodeTopicsDetails {
+pub struct NodeTopic {
     pub id: u32,
     pub title: String,
     pub content: String,
@@ -462,6 +502,23 @@ mod tests {
             topic_id: 1029068,
         };
         match c.get_topics(&req).await {
+            Ok(body) => {
+                println!("{:?}", body)
+            }
+            Err(e) => {
+                eprintln!("{}", e)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn get_topics_replies() {
+        let c = new();
+        let req = GetTopicsRepliesReq {
+            topic_id: 1029068,
+            page: 1,
+        };
+        match c.get_topics_replies(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
