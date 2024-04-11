@@ -52,7 +52,6 @@ impl Client {
         // println!("url: {:?}", req.url().to_string());
 
         let bytes = self.req_client.execute(req).await?.bytes().await?;
-
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -65,10 +64,39 @@ impl Client {
         // println!("url: {:?}", req.url().to_string());
 
         let bytes = self.req_client.execute(req).await?.bytes().await?;
-
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
+
+    /// 查看当前使用的令牌.
+    pub async fn get_token(&self) -> Result<GetTokenRsp, Box<dyn Error>> {
+        let url = format!("{}{}", V2EX_API_DOMAIN, "/token");
+        let req = self.req_client.get(url).build()?;
+
+        println!("url: {:?}", req.url().to_string());
+
+        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let body = serde_json::from_slice(&bytes)?;
+        Ok(body)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetTokenRsp {
+    #[serde(flatten)]
+    pub status: Status,
+    pub result: TokenDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TokenDetails {
+    pub token: String,
+    pub scope: String,
+    pub expiration: i64,
+    pub good_for_days: u8,
+    pub total_used: u32,
+    pub last_used: i64,
+    pub created: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -169,6 +197,19 @@ mod tests {
     async fn get_member() {
         let c = new();
         match c.get_member().await {
+            Ok(body) => {
+                println!("{:?}", body)
+            }
+            Err(e) => {
+                eprintln!("{}", e)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn get_token() {
+        let c = new();
+        match c.get_token().await {
             Ok(body) => {
                 println!("{:?}", body)
             }
