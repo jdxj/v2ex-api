@@ -2,6 +2,7 @@ use reqwest::{header::HeaderMap, ClientBuilder};
 use std::error::Error;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+use std::sync::atomic::{AtomicU16, AtomicI64, Ordering};
 
 /// API 域名前缀.
 pub const V2EX_API_DOMAIN: &str = "https://www.v2ex.com/api/v2";
@@ -9,6 +10,9 @@ pub const V2EX_API_DOMAIN: &str = "https://www.v2ex.com/api/v2";
 #[derive(Debug)]
 pub struct Client {
     req_client: reqwest::Client,
+    limit: AtomicU16,
+    remaining: AtomicU16,
+    reset: AtomicI64,
 }
 
 impl Client {
@@ -22,7 +26,51 @@ impl Client {
         let cb = ClientBuilder::new();
         Client {
             req_client: cb.default_headers(hm).build().unwrap(),
+            limit: AtomicU16::new(0),
+            remaining: AtomicU16::new(0),
+            reset: AtomicI64::new(0),
         }
+    }
+
+    fn set_rate(&self, header: &reqwest::header::HeaderMap) {
+        if let Some(hv) = header.get("X-Rate-Limit-Limit") {
+            if let Ok(v) = hv.to_str() {
+                if let Ok(limit) = v.parse::<u16>() {
+                    self.limit.store(limit, Ordering::Relaxed);
+                }
+            }
+        }
+
+        if let Some(hv) = header.get("X-Rate-Limit-Remaining") {
+            if let Ok(v) = hv.to_str() {
+                if let Ok(remaining) = v.parse::<u16>() {
+                    self.remaining.store(remaining, Ordering::Relaxed);
+                }
+            }
+        }
+
+        if let Some(hv) = header.get("X-Rate-Limit-Reset") {
+            if let Ok(v) = hv.to_str() {
+                if let Ok(reset) = v.parse::<i64>() {
+                    self.reset.store(reset, Ordering::Relaxed);
+                }
+            }
+        }
+    }
+
+    /// 同一个时间段所允许的请求的最大数目.
+    pub fn limit(&self) -> u16 {
+        self.limit.load(Ordering::Relaxed)
+    }
+
+    /// 在当前时间段内剩余的请求的数量.
+    pub fn remaining(&self) -> u16 {
+        self.remaining.load(Ordering::Relaxed)
+    }
+
+    /// 为了得到最大请求数所等待的秒数.
+    pub fn reset(&self) -> i64 {
+        self.reset.load(Ordering::Relaxed)
     }
 
     /// 获取最新的提醒.
@@ -39,7 +87,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -52,7 +103,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -64,7 +118,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -76,7 +133,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -95,7 +155,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -107,7 +170,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -126,7 +192,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -138,7 +207,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -157,7 +229,10 @@ impl Client {
 
         // println!("url: {:?}", req.url().to_string());
 
-        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let rsp = self.req_client.execute(req).await?;
+        self.set_rate(rsp.headers());
+
+        let bytes = rsp.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
@@ -404,6 +479,8 @@ mod tests {
                 eprintln!("{}", e)
             }
         }
+
+        println!("{:?}", c)
     }
 
     #[tokio::test]
