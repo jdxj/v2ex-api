@@ -101,12 +101,42 @@ impl Client {
     }
 
     /// 获取指定节点.
-    // todo
-    pub async fn get_nodes() {}
+    pub async fn get_nodes(&self, req: &GetNodesReq) -> Result<GetNodesRsp, Box<dyn Error>> {
+        let url = format!("{}{}{}", V2EX_API_DOMAIN, "/nodes/", req.node_name);
+        let req = self.req_client.get(url).build()?;
+
+        println!("url: {:?}", req.url().to_string());
+
+        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let body = serde_json::from_slice(&bytes)?;
+        Ok(body)
+    }
 }
 
-// todo
-pub struct GetNodesReq {}
+pub struct GetNodesReq {
+    pub node_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetNodesRsp {
+    #[serde(flatten)]
+    pub status: Status,
+    pub result: NodeDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NodeDetails {
+    pub id: u16,
+    pub url: String,
+    pub name: String,
+    pub title: String,
+    pub header: String,
+    pub footer: String,
+    pub avatar: String,
+    pub topics: u32,
+    pub created: i64,
+    pub last_modified: i64,
+}
 
 pub struct PostTokensReq {
     pub scope: Scope,
@@ -298,11 +328,27 @@ mod tests {
     #[tokio::test]
     async fn post_tokens() {
         let c = new();
-        let req = PostTokensReq{
+        let req = PostTokensReq {
             scope: Scope::Regular,
             expiration: Expiration::Day30,
         };
         match c.post_tokens(&req).await {
+            Ok(body) => {
+                println!("{:?}", body)
+            }
+            Err(e) => {
+                eprintln!("{}", e)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn get_nodes() {
+        let c = new();
+        let req = GetNodesReq {
+            node_name: "rust".to_string(),
+        };
+        match c.get_nodes(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
