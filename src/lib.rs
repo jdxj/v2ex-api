@@ -1,5 +1,6 @@
 use reqwest::{header::HeaderMap, ClientBuilder};
 use std::error::Error;
+use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 /// API 域名前缀.
@@ -73,11 +74,86 @@ impl Client {
         let url = format!("{}{}", V2EX_API_DOMAIN, "/token");
         let req = self.req_client.get(url).build()?;
 
-        println!("url: {:?}", req.url().to_string());
+        // println!("url: {:?}", req.url().to_string());
 
         let bytes = self.req_client.execute(req).await?.bytes().await?;
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
+    }
+
+    /// 创建新的令牌.
+    /// 在系统中最多创建 10 个 Personal Access Token.
+    pub async fn post_tokens(&self, req: &PostTokensReq) -> Result<PostTokensRsp, Box<dyn Error>> {
+        let mut data = HashMap::new();
+        data.insert("scope", req.scope.as_str());
+        data.insert("expiration", req.expiration.as_str());
+
+        let url = format!("{}{}", V2EX_API_DOMAIN, "/tokens");
+        let req = self.req_client.post(url)
+            .json(&data)
+            .build()?;
+
+        // println!("url: {:?}", req.url().to_string());
+
+        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let body = serde_json::from_slice(&bytes)?;
+        Ok(body)
+    }
+
+    /// 获取指定节点.
+    // todo
+    pub async fn get_nodes() {}
+}
+
+// todo
+pub struct GetNodesReq {}
+
+pub struct PostTokensReq {
+    pub scope: Scope,
+    pub expiration: Expiration,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PostTokensRsp {
+    pub success: bool,
+    pub result: Token,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Token {
+    pub token: String,
+}
+
+pub enum Scope {
+    Everything,
+    /// 不能用于进一步创建新的 token.
+    Regular,
+}
+
+impl Scope {
+    fn as_str(&self) -> &str {
+        match self {
+            Scope::Everything => "everything",
+            Scope::Regular => "regular"
+        }
+    }
+}
+
+pub enum Expiration {
+    Day30,
+    Day60,
+    Day90,
+    Day180,
+}
+
+impl Expiration {
+    fn as_str(&self) -> &str {
+        match self {
+            Expiration::Day30 => "2592000",
+            Expiration::Day60 => "5184000",
+            Expiration::Day90 => "7776000",
+            Expiration::Day180 => "15552000",
+        }
     }
 }
 
@@ -210,6 +286,23 @@ mod tests {
     async fn get_token() {
         let c = new();
         match c.get_token().await {
+            Ok(body) => {
+                println!("{:?}", body)
+            }
+            Err(e) => {
+                eprintln!("{}", e)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn post_tokens() {
+        let c = new();
+        let req = PostTokensReq{
+            scope: Scope::Regular,
+            expiration: Expiration::Day30,
+        };
+        match c.post_tokens(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
