@@ -130,6 +130,39 @@ impl Client {
         let body = serde_json::from_slice(&bytes)?;
         Ok(body)
     }
+
+    /// 获取指定主题.
+    pub async fn get_topics(&self, req: &GetTopicsReq) -> Result<GetTopicsRsp, Box<dyn Error>> {
+        let url = format!("{}/topics/{}", V2EX_API_DOMAIN, req.topic_id);
+        let req = self.req_client.get(url).build()?;
+
+        // println!("url: {:?}", req.url().to_string());
+
+        let bytes = self.req_client.execute(req).await?.bytes().await?;
+        let body = serde_json::from_slice(&bytes)?;
+        Ok(body)
+    }
+}
+
+pub struct GetTopicsReq {
+    pub topic_id: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetTopicsRsp {
+    #[serde(flatten)]
+    pub status: Status,
+    pub result: TopicDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TopicDetails {
+    #[serde(flatten)]
+    pub details: NodeTopicsDetails,
+    pub member: Member,
+    pub node: NodeDetails,
+    // todo: 没有数据, 无法定义
+    // pub supplements: Vec<?>,
 }
 
 pub struct GetNodesTopicsReq {
@@ -270,11 +303,12 @@ pub struct Member {
     pub location: Option<String>,
     pub tagline: Option<String>,
     pub bio: Option<String>,
-    pub avatar_mini: String,
-    pub avatar_normal: String,
-    pub avatar_large: String,
+    pub avatar: Option<String>,
+    pub avatar_mini: Option<String>,
+    pub avatar_normal: Option<String>,
+    pub avatar_large: Option<String>,
     pub created: i64,
-    pub last_modified: i64,
+    pub last_modified: Option<i64>,
 }
 
 pub struct DeleteNotificationsReq {
@@ -295,8 +329,8 @@ pub struct GetNotificationsReq {
 pub struct GetNotificationsRsp {
     #[serde(flatten)]
     pub status: Status,
-    // todo: 实现
-    // pub result: Vec<()>,
+    // todo: 没有数据, 无法定义
+    // pub result: Vec<?>,
 }
 
 /// 请求结果状态.
@@ -412,6 +446,22 @@ mod tests {
             page: 1,
         };
         match c.get_nodes_topics(&req).await {
+            Ok(body) => {
+                println!("{:?}", body)
+            }
+            Err(e) => {
+                eprintln!("{}", e)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn get_topics() {
+        let c = new();
+        let req = GetTopicsReq {
+            topic_id: 1029068,
+        };
+        match c.get_topics(&req).await {
             Ok(body) => {
                 println!("{:?}", body)
             }
